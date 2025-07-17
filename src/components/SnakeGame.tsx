@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './SnakeGame.css'
 
 interface Position {
@@ -18,7 +18,7 @@ const BOARD_HEIGHT = 20
 const INITIAL_SNAKE = [{ x: 10, y: 10 }]
 const INITIAL_FOOD = { x: 15, y: 15 }
 const INITIAL_DIRECTION = Direction.RIGHT
-const BOMB_SPAWN_INTERVAL = 5000 // 5 seconds
+const BOMB_SPAWN_INTERVAL = 3000 // 3 seconds (reduced for testing)
 
 const SnakeGame = () => {
   const [snake, setSnake] = useState<Position[]>(INITIAL_SNAKE)
@@ -29,6 +29,16 @@ const SnakeGame = () => {
   const [score, setScore] = useState(0)
   const [gameStarted, setGameStarted] = useState(false)
   const [speed, setSpeed] = useState(200)
+  
+  // Use refs to access current state in interval
+  const snakeRef = useRef(snake)
+  const foodRef = useRef(food)
+  const bombsRef = useRef(bombs)
+  
+  // Update refs when state changes
+  useEffect(() => { snakeRef.current = snake }, [snake])
+  useEffect(() => { foodRef.current = food }, [food])
+  useEffect(() => { bombsRef.current = bombs }, [bombs])
 
   const generateFood = useCallback((snakeBody: Position[], bombPositions: Position[]): Position => {
     let newFood: Position
@@ -130,18 +140,18 @@ const SnakeGame = () => {
     if (!gameStarted || gameOver) return
 
     const bombInterval = setInterval(() => {
-      setBombs(currentBombs => {
-        const newBomb = generateBomb(snake, food, currentBombs)
-        return [...currentBombs, newBomb]
-      })
+      const newBomb = generateBomb(snakeRef.current, foodRef.current, bombsRef.current)
+      setBombs(prev => [...prev, newBomb])
     }, BOMB_SPAWN_INTERVAL)
 
     return () => clearInterval(bombInterval)
-  }, [gameStarted, gameOver, snake, food, generateBomb])
+  }, [gameStarted, gameOver, generateBomb])
 
   const handleKeyPress = useCallback((e: KeyboardEvent) => {
     if (!gameStarted && e.key === ' ') {
       setGameStarted(true)
+      // Add a test bomb when game starts
+      setBombs([{ x: 5, y: 5 }])
       return
     }
 
