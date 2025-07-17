@@ -12,15 +12,35 @@
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--text-primary);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.score, .speed {
+.score, .speed, .invincibility-timer {
   padding: 0.5rem 1rem;
   background-color: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   min-width: 120px;
   text-align: center;
+}
+
+.invincibility-timer {
+  background-color: #fbbf24;
+  border-color: #f59e0b;
+  color: #92400e;
+  animation: invincibility-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes invincibility-pulse {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 5px #fbbf24;
+  }
+  to {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px #f59e0b;
+  }
 }
 
 .game-board {
@@ -48,9 +68,34 @@
   border-radius: 2px;
 }
 
+.cell.snake.invincible {
+  background: linear-gradient(45deg, #fbbf24, #f59e0b, #fbbf24, #f59e0b);
+  background-size: 400% 400%;
+  animation: invincible-shimmer 0.8s ease-in-out infinite;
+  box-shadow: 0 0 8px #fbbf24;
+}
+
+@keyframes invincible-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .cell.snake.head {
   background-color: #16a34a; /* Darker green for head */
   position: relative;
+}
+
+.cell.snake.head.invincible {
+  background: linear-gradient(45deg, #f59e0b, #eab308, #f59e0b, #eab308);
+  background-size: 400% 400%;
+  animation: invincible-shimmer 0.8s ease-in-out infinite;
 }
 
 .cell.snake.head::after {
@@ -66,11 +111,45 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
+.cell.snake.head.invincible::after {
+  background-color: #92400e;
+  box-shadow: 0 0 6px #fbbf24;
+}
+
 .cell.food {
   background-color: #ef4444;
   border-radius: 50%;
   position: relative;
   animation: pulse 1s ease-in-out infinite alternate;
+}
+
+.cell.invincibility-powerup {
+  background: radial-gradient(circle, #fbbf24 30%, #f59e0b 70%);
+  border-radius: 50%;
+  position: relative;
+  animation: powerup-glow 1.5s ease-in-out infinite alternate;
+}
+
+.cell.invincibility-powerup::before {
+  content: '⭐';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: #92400e;
+  text-shadow: 0 0 3px #fbbf24;
+}
+
+@keyframes powerup-glow {
+  from {
+    transform: scale(0.9);
+    box-shadow: 0 0 5px #fbbf24;
+  }
+  to {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px #f59e0b, 0 0 25px #fbbf24;
+  }
 }
 
 @keyframes pulse {
@@ -133,7 +212,7 @@
     gap: 1rem;
   }
   
-  .score, .speed {
+  .score, .speed, .invincibility-timer {
     min-width: auto;
     width: 100%;
   }
@@ -145,5 +224,9 @@
   
   .game-overlay h2 {
     font-size: 1.5rem;
+  }
+  
+  .cell.invincibility-powerup::before {
+    font-size: 10px;
   }
 }
