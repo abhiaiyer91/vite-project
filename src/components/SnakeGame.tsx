@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './SnakeGame.css'
 
 interface Position {
@@ -18,25 +18,55 @@ const BOARD_HEIGHT = 20
 const INITIAL_SNAKE = [{ x: 10, y: 10 }]
 const INITIAL_FOOD = { x: 15, y: 15 }
 const INITIAL_DIRECTION = Direction.RIGHT
+const BOMB_SPAWN_INTERVAL = 3000 // 3 seconds (reduced for testing)
 
 const SnakeGame = () => {
   const [snake, setSnake] = useState<Position[]>(INITIAL_SNAKE)
   const [food, setFood] = useState<Position>(INITIAL_FOOD)
+  const [bombs, setBombs] = useState<Position[]>([])
   const [direction, setDirection] = useState<Direction>(INITIAL_DIRECTION)
   const [gameOver, setGameOver] = useState(false)
   const [score, setScore] = useState(0)
   const [gameStarted, setGameStarted] = useState(false)
   const [speed, setSpeed] = useState(200)
+  
+  // Use refs to access current state in interval
+  const snakeRef = useRef(snake)
+  const foodRef = useRef(food)
+  const bombsRef = useRef(bombs)
+  
+  // Update refs when state changes
+  useEffect(() => { snakeRef.current = snake }, [snake])
+  useEffect(() => { foodRef.current = food }, [food])
+  useEffect(() => { bombsRef.current = bombs }, [bombs])
 
-  const generateFood = useCallback((snakeBody: Position[]): Position => {
+  const generateFood = useCallback((snakeBody: Position[], bombPositions: Position[]): Position => {
     let newFood: Position
     do {
       newFood = {
         x: Math.floor(Math.random() * BOARD_WIDTH),
         y: Math.floor(Math.random() * BOARD_HEIGHT)
       }
-    } while (snakeBody.some(segment => segment.x === newFood.x && segment.y === newFood.y))
+    } while (
+      snakeBody.some(segment => segment.x === newFood.x && segment.y === newFood.y) ||
+      bombPositions.some(bomb => bomb.x === newFood.x && bomb.y === newFood.y)
+    )
     return newFood
+  }, [])
+
+  const generateBomb = useCallback((snakeBody: Position[], foodPosition: Position, existingBombs: Position[]): Position => {
+    let newBomb: Position
+    do {
+      newBomb = {
+        x: Math.floor(Math.random() * BOARD_WIDTH),
+        y: Math.floor(Math.random() * BOARD_HEIGHT)
+      }
+    } while (
+      snakeBody.some(segment => segment.x === newBomb.x && segment.y === newBomb.y) ||
+      (foodPosition.x === newBomb.x && foodPosition.y === newBomb.y) ||
+      existingBombs.some(bomb => bomb.x === newBomb.x && bomb.y === newBomb.y)
+    )
+    return newBomb
   }, [])
 
   const checkCollision = (head: Position, snakeBody: Position[]): boolean => {
@@ -46,6 +76,10 @@ const SnakeGame = () => {
     }
     // Self collision
     return snakeBody.some(segment => segment.x === head.x && segment.y === head.y)
+  }
+
+  const checkBombCollision = (head: Position, bombPositions: Position[]): boolean => {
+    return bombPositions.some(bomb => bomb.x === head.x && bomb.y === head.y)
   }
 
   const moveSnake = useCallback(() => {
@@ -75,6 +109,12 @@ const SnakeGame = () => {
         return currentSnake
       }
 
+      // Check bomb collision
+      if (checkBombCollision(head, bombs)) {
+        setGameOver(true)
+        return currentSnake
+      }
+
       newSnake.unshift(head)
 
       // Check if food is eaten
@@ -86,18 +126,32 @@ const SnakeGame = () => {
           setSpeed(newSpeed)
           return newScore
         })
-        setFood(generateFood(newSnake))
+        setFood(generateFood(newSnake, bombs))
       } else {
         newSnake.pop()
       }
 
       return newSnake
     })
-  }, [direction, food, gameOver, gameStarted, generateFood])
+  }, [direction, food, bombs, gameOver, gameStarted, generateFood])
+
+  // Bomb spawning effect
+  useEffect(() => {
+    if (!gameStarted || gameOver) return
+
+    const bombInterval = setInterval(() => {
+      const newBomb = generateBomb(snakeRef.current, foodRef.current, bombsRef.current)
+      setBombs(prev => [...prev, newBomb])
+    }, BOMB_SPAWN_INTERVAL)
+
+    return () => clearInterval(bombInterval)
+  }, [gameStarted, gameOver, generateBomb])
 
   const handleKeyPress = useCallback((e: KeyboardEvent) => {
     if (!gameStarted && e.key === ' ') {
       setGameStarted(true)
+      // Add a test bomb when game starts
+      setBombs([{ x: 5, y: 5 }])
       return
     }
 
@@ -105,6 +159,7 @@ const SnakeGame = () => {
       // Restart game
       setSnake(INITIAL_SNAKE)
       setFood(INITIAL_FOOD)
+      setBombs([])
       setDirection(INITIAL_DIRECTION)
       setGameOver(false)
       setScore(0)
@@ -154,6 +209,8 @@ const SnakeGame = () => {
           }
         } else if (food.x === x && food.y === y) {
           cellClass += ' food'
+        } else if (bombs.some(bomb => bomb.x === x && bomb.y === y)) {
+          cellClass += ' bomb'
         }
 
         board.push(
@@ -172,6 +229,7 @@ const SnakeGame = () => {
       <div className="game-info">
         <div className="score">Score: {score}</div>
         <div className="speed">Speed: {Math.round((200 - speed) / 20) + 1}</div>
+        <div className="bombs">Bombs: {bombs.length}</div>
       </div>
       
       <div className="game-board">
@@ -182,6 +240,7 @@ const SnakeGame = () => {
         <div className="game-overlay">
           <h2>Snake Game</h2>
           <p>Use arrow keys to control the snake</p>
+          <p>Eat food to grow, avoid bombs!</p>
           <p>Press SPACE to start</p>
         </div>
       )}
@@ -195,7 +254,7 @@ const SnakeGame = () => {
       )}
 
       <div className="game-controls">
-        <p>Use arrow keys to move • Press SPACE to {gameStarted ? 'restart' : 'start'}</p>
+        <p>Use arrow keys to move • Avoid the bombs! • Press SPACE to {gameStarted ? 'restart' : 'start'}</p>
       </div>
     </div>
   )
